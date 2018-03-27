@@ -13,7 +13,7 @@ module.exports = function buildPreset(
   const target = targets.hasOwnProperty('node') ? 'node' : 'browser';
 
   return {
-    presets: [require('@babel/preset-react'), require('@babel/preset-flow')],
+    presets: [require('@babel/preset-react')],
     plugins: [
       require('@babel/plugin-syntax-object-rest-spread'),
       require('@babel/plugin-syntax-dynamic-import'),
