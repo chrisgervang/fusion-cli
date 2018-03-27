@@ -27,7 +27,6 @@ module.exports = function buildPreset(
         },
       ],
       require('@babel/preset-react'),
-      require('@babel/preset-flow'),
     ],
     plugins: [
       require('@babel/plugin-transform-flow-strip-types'),
