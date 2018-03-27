@@ -29,7 +29,6 @@ module.exports = function buildPreset(
       require('@babel/preset-react'),
     ],
     plugins: [
-      require('@babel/plugin-transform-flow-strip-types'),
       require('@babel/plugin-proposal-async-generator-functions'),
       require('@babel/plugin-proposal-class-properties'),
       [
