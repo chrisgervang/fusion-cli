@@ -15,7 +15,7 @@ module.exports = function buildPreset(
   {targets, syntax, modules = false, transformGlobals = true} /*: PresetOpts */
 ) {
   const target = targets.hasOwnProperty('node') ? 'node' : 'browser';
-
+  console.log(`build-preset: ${syntax} ${target}`);
   return {
     presets: [
       [
