@@ -40,6 +40,7 @@ const {assetPath} = getEnv();
 
 function getConfig({target, env, dir, watch, cover}) {
   const main = 'src/main.js';
+  const maints = 'src/main.ts';
 
   if (target !== 'node' && target !== 'web' && target !== 'webworker') {
     throw new Error('Invalid target: must be `node`, `web`, or `webworker`');
@@ -47,8 +48,8 @@ function getConfig({target, env, dir, watch, cover}) {
   if (env !== 'production' && env !== 'development' && env !== 'test') {
     throw new Error('Invalid name: must be `production`, `dev`, or `test`');
   }
-  if (!fs.existsSync(path.resolve(dir, main))) {
-    throw new Error(`Project directory must contain a ${main} file`);
+  if (!fs.existsSync(path.resolve(dir, main)) && !fs.existsSync(path.resolve(dir, maints))) {
+    throw new Error(`Project directory must contain a ${main} or ${maints} file`);
   }
 
   const serverOnlyTestGlob = `${dir}/src/**/__tests__/*.node.js`;
@@ -208,7 +209,7 @@ function getConfig({target, env, dir, watch, cover}) {
       strictExportPresence: true,
       rules: [
         {
-          test: /\.jsx?$/,
+          test: /\.jsx?$|\.tsx?$/,
           include: [
             // Whitelist the app directory rather than maintain a blacklist
             appSrcDir,
@@ -333,6 +334,7 @@ function getConfig({target, env, dir, watch, cover}) {
           },
         alias
       ),
+      extensions: [".ts", ".tsx", ".js", ".jsx"]
     },
     resolveLoader: {
       alias: {
