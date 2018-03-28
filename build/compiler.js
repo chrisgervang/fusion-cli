@@ -270,7 +270,8 @@ function getConfig({target, env, dir, watch, cover, syntax}) {
                               browsers: evergreen
                                 ? browserSupport.evergreen
                                 : browserSupport.conservative,
-                            },
+                          },
+                      syntax: syntax
                     },
                   ],
                   ...(fusionConfig.babel && fusionConfig.babel.presets

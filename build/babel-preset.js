@@ -12,7 +12,7 @@ type PresetOpts = {|
 
 module.exports = function buildPreset(
   context /*: any */,
-  {targets, modules = false, transformGlobals = true} /*: PresetOpts */
+  {targets, syntax, modules = false, transformGlobals = true} /*: PresetOpts */
 ) {
   const target = targets.hasOwnProperty('node') ? 'node' : 'browser';
 
@@ -27,8 +27,12 @@ module.exports = function buildPreset(
         },
       ],
       require('@babel/preset-react'),
+      syntax === 'typescript' ? require('@babel/preset-typescript') : require('@babel/preset-flow'),
     ],
     plugins: [
+      syntax === 'typescript' ?
+        require('@babel/plugin-transform-typescript')
+        : require('@babel/plugin-transform-flow-strip-types'),
       require('@babel/plugin-proposal-async-generator-functions'),
       require('@babel/plugin-proposal-class-properties'),
       [
