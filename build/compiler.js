@@ -38,9 +38,12 @@ const {getEnv} = require('fusion-core');
 
 const {assetPath} = getEnv();
 
-function getConfig({target, env, dir, watch, cover}) {
-  const main = 'src/main.js';
-  const maints = 'src/main.ts';
+function getConfig({target, env, dir, watch, cover, syntax}) {
+  let main = 'src/main.js';
+
+  if (syntax === 'typescript') {
+    main = 'src/main.ts';
+  }
 
   if (target !== 'node' && target !== 'web' && target !== 'webworker') {
     throw new Error('Invalid target: must be `node`, `web`, or `webworker`');
@@ -48,8 +51,8 @@ function getConfig({target, env, dir, watch, cover}) {
   if (env !== 'production' && env !== 'development' && env !== 'test') {
     throw new Error('Invalid name: must be `production`, `dev`, or `test`');
   }
-  if (!fs.existsSync(path.resolve(dir, main)) && !fs.existsSync(path.resolve(dir, maints))) {
-    throw new Error(`Project directory must contain a ${main} or ${maints} file`);
+  if (!fs.existsSync(path.resolve(dir, main))) {
+    throw new Error(`Project directory must contain a ${main} file`);
   }
 
   const serverOnlyTestGlob = `${dir}/src/**/__tests__/*.node.js`;
@@ -492,14 +495,14 @@ function getConfig({target, env, dir, watch, cover}) {
   };
 }
 
-function getProfile({dir, env, watch, cover}) {
+function getProfile({dir, env, watch, cover, syntax}) {
   return [
     // browser
-    getConfig({target: 'web', env, dir, watch, cover}),
+    getConfig({target: 'web', env, dir, watch, cover, syntax}),
     // server
-    getConfig({target: 'node', env, dir, watch, cover}),
+    getConfig({target: 'node', env, dir, watch, cover, syntax}),
     // sw
-    getConfig({target: 'webworker', env, dir, watch, cover}),
+    getConfig({target: 'webworker', env, dir, watch, cover, syntax}),
   ].filter(Boolean);
 }
 
@@ -559,9 +562,10 @@ function Compiler({
   watch = false,
   cover = false,
   logger = console,
+  syntax = 'typescript',
 }) {
   const profiles = envs.map(env => {
-    return getProfile({env: env, dir: path.resolve(dir), watch, cover});
+    return getProfile({env: env, dir: path.resolve(dir), watch, cover, syntax});
   });
   const flattened = [].concat(...profiles);
   const compiler = webpack(flattened);
