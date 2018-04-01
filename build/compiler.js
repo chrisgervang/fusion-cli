@@ -7,7 +7,6 @@ const ProgressBarPlugin = require('progress-bar-webpack-plugin');
 const WebpackChunkHash = require('webpack-chunk-hash');
 const webpackDevMiddleware = require('../lib/simple-webpack-dev-middleware');
 const ChunkManifestPlugin = require('./external-chunk-manifest-plugin.js');
-const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
 const CaseSensitivePathsPlugin = require('case-sensitive-paths-webpack-plugin');
 const {
   //zopfliWebpackPlugin,
@@ -127,6 +126,17 @@ function getConfig({target, env, dir, watch, cover, syntax}) {
     `process.env.NODE_ENV = '${nodeEnv}';` +
     `}`;
 
+  const targets =
+    target === 'node'
+      ? {
+          node: 'current',
+        }
+      : {
+          browsers: evergreen
+            ? browserSupport.evergreen
+            : browserSupport.conservative,
+        };
+
   return {
     name,
     target,
@@ -211,15 +221,11 @@ function getConfig({target, env, dir, watch, cover, syntax}) {
        */
       strictExportPresence: true,
       rules: [
+        /**
+         * Global transforms (including ES2017+ transpilations)
+         */
         {
           test: /\.jsx?$|\.tsx?$/,
-          include: [
-            // Whitelist the app directory rather than maintain a blacklist
-            appSrcDir,
-            // Allow babelifying our client entry. We want to use JSX here.
-            entry,
-            /fusion-cli\/entries/,
-          ],
           use: [
             {
               loader: require.resolve('babel-loader'),
@@ -229,48 +235,13 @@ function getConfig({target, env, dir, watch, cover, syntax}) {
                   ...(fusionConfig.babel && fusionConfig.babel.plugins
                     ? fusionConfig.babel.plugins
                     : []),
-                  //cup-globals works with webpack.EnvironmentPlugin(['NODE_ENV']) to implement static conditionals
-                  require.resolve('@babel/plugin-syntax-dynamic-import'),
-                  require.resolve('./babel-plugins/babel-plugin-asseturl'),
-                  require.resolve(
-                    './babel-plugins/babel-plugin-pure-create-plugin'
-                  ),
-                  require.resolve(
-                    './babel-plugins/babel-plugin-sync-chunk-ids'
-                  ),
-                  require.resolve(
-                    './babel-plugins/babel-plugin-sync-chunk-paths'
-                  ),
-                  require.resolve('./babel-plugins/babel-plugin-chunkid'),
-                  // TODO(#8): sw implementation is totally busted.
-                  // require.resolve('./babel-plugins/babel-plugin-sw'),
-                  pragma && [
-                    require.resolve('@babel/plugin-transform-react-jsx'),
-                    {pragma},
-                  ],
-                  cover && require.resolve('babel-plugin-istanbul'),
-                  target === 'node' &&
-                    require.resolve('./babel-plugins/babel-plugin-i18n'),
-                  target === 'node' &&
-                    require.resolve(
-                      './babel-plugins/babel-plugin-experimentation'
-                    ),
-                ].filter(Boolean),
+                ],
                 presets: [
                   // Note: presets run last to first, so user-defined presets go last
                   [
-                    require.resolve('./babel-preset.js'),
+                    require.resolve('./babel-transpilation-preset.js'),
                     {
-                      targets:
-                        target === 'node'
-                          ? {
-                              node: 'current',
-                            }
-                          : {
-                              browsers: evergreen
-                                ? browserSupport.evergreen
-                                : browserSupport.conservative,
-                          },
+                      targets,
                       syntax: syntax
                     },
                   ],
@@ -278,6 +249,58 @@ function getConfig({target, env, dir, watch, cover, syntax}) {
                     ? fusionConfig.babel.presets
                     : []),
                 ],
+
+                /**
+                 * Fusion-specific transforms (not applied to node_modules)
+                 */
+                overrides: [
+                  {
+                    include: [
+                      // Whitelist the app directory rather than maintain a blacklist
+                      appSrcDir,
+                      // Allow babelifying our client entry. We want to use JSX here.
+                      entry,
+                      /fusion-cli\/entries/,
+                    ],
+                    plugins: [
+                      //cup-globals works with webpack.EnvironmentPlugin(['NODE_ENV']) to implement static conditionals
+                      require.resolve('./babel-plugins/babel-plugin-asseturl'),
+                      require.resolve(
+                        './babel-plugins/babel-plugin-pure-create-plugin'
+                      ),
+                      require.resolve(
+                        './babel-plugins/babel-plugin-sync-chunk-ids'
+                      ),
+                      require.resolve(
+                        './babel-plugins/babel-plugin-sync-chunk-paths'
+                      ),
+                      require.resolve('./babel-plugins/babel-plugin-chunkid'),
+                      // TODO(#8): sw implementation is totally busted.
+                      // require.resolve('./babel-plugins/babel-plugin-sw'),
+                      pragma && [
+                        require.resolve('@babel/plugin-transform-react-jsx'),
+                        {pragma},
+                      ],
+                      cover && require.resolve('babel-plugin-istanbul'),
+                      target === 'node' &&
+                        require.resolve('./babel-plugins/babel-plugin-i18n'),
+                      target === 'node' &&
+                        require.resolve(
+                          './babel-plugins/babel-plugin-experimentation'
+                        ),
+                    ].filter(Boolean),
+                    presets: [
+                      [
+                        require.resolve('./babel-fusion-preset.js'),
+                        {
+                          targets,
+                          syntax: syntax
+                        },
+                      ],
+                    ],
+                  },
+                ],
+
                 babelrc: false,
               },
             },
@@ -397,9 +420,9 @@ function getConfig({target, env, dir, watch, cover, syntax}) {
       // See https://github.com/webpack/webpack/issues/1315 and
       // https://webpack.js.org/guides/caching/#generating-unique-hashes-for-each-file
       // Use deterministic, internal webpack identifiers based on hashed contents
-      env === 'production' && target === 'web'
-        ? new webpack.HashedModuleIdsPlugin()
-        : new webpack.NamedModulesPlugin(),
+      env === 'production' &&
+        target === 'web' &&
+        new webpack.HashedModuleIdsPlugin(),
       // Adds md5 hashing of webpack chunks
       env === 'production' && target === 'web' && new WebpackChunkHash(),
       // This is necessary to tell webpack not to inline code referencing
@@ -452,15 +475,6 @@ function getConfig({target, env, dir, watch, cover, syntax}) {
           banner: nodeEnvBanner,
         }),
       new webpack.EnvironmentPlugin({NODE_ENV: nodeEnv}),
-      target !== 'node' &&
-        env === 'production' &&
-        new UglifyJSPlugin({
-          // TODO(#12): Investigate if these options are still required - they are causing production builds to fail
-          // compress: {warnings: false},
-          // mangle: true,
-          // output: {comments: false},
-          sourceMap: true,
-        }),
     ].filter(Boolean),
     optimization: {
       sideEffects: true,

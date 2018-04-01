@@ -5,6 +5,7 @@ const test = require('tape');
 const {dev} = require('../run-command');
 const {promisify} = require('util');
 const request = require('request-promise');
+const requestCb = require('request');
 
 const exists = promisify(fs.exists);
 
@@ -205,4 +206,38 @@ test('`fusion dev` with named async function', async t => {
   });
   proc.kill();
   t.end();
+});
+
+test('`fusion dev` CHUNK_ID instrumentation', async t => {
+  const dir = path.resolve(__dirname, '../fixtures/split');
+  const {proc, port} = await dev(`--dir=${dir}`, {
+    stdio: 'inherit',
+  });
+  const resA = await request(`http://localhost:${port}/test-a`);
+  const resB = await request(`http://localhost:${port}/test-b`);
+  const res = await request(`http://localhost:${port}/test`);
+  t.deepLooseEqual(JSON.parse(res), [2]);
+  t.deepLooseEqual(JSON.parse(resA), [0, 2]);
+  t.deepLooseEqual(JSON.parse(resB), [1, 2]);
+  proc.kill();
+  t.end();
+});
+
+test('`fusion dev` with server side redirects', async t => {
+  const dir = path.resolve(__dirname, '../fixtures/redirect');
+  const {proc, port} = await dev(`--dir=${dir}`, {
+    stdio: 'inherit',
+  });
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  requestCb(
+    {
+      uri: `http://localhost:${port}/redirect`,
+      followRedirect: false,
+    },
+    (err, res) => {
+      t.equal(res.statusCode, 302, 'responds with a 302 status code');
+      proc.kill();
+      t.end();
+    }
+  );
 });
