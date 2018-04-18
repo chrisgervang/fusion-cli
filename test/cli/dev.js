@@ -196,6 +196,8 @@ test('`fusion dev` recovering from errors', async t => {
     );
     next();
   });
+  // Need a wait here before saving otherwise the watcher won't pick up the edited file.
+  await new Promise(resolve => setTimeout(resolve, 500));
   fs.writeFileSync(mainPath, fs.readFileSync(mainPath));
 });
 
